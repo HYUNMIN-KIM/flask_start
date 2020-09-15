@@ -38,27 +38,27 @@ dense_num = data['CATEGORY'].unique().size
 result = {}
 
 
-for i,document in enumerate(X):
-    me = Okt()
-    clean_word = me.pos(document,stem=True,norm=True)
-    join_word  = []
-    for word in clean_word:
-       if not word[1] in ["Josa"]:
-            join_word.append(word[0])
+# for i,document in enumerate(X):
+#     me = Okt()
+#     clean_word = me.pos(document,stem=True,norm=True)
+#     join_word  = []
+#     for word in clean_word:
+#        if not word[1] in ["Josa"]:
+#             join_word.append(word[0])
+#
+#     document = ' '.join(join_word)
+#     data['TITLE'][i] = document
 
-    document = ' '.join(join_word)
-    data['TITLE'][i] = document
-
-for i, document in enumerate(testX):
-      me = Okt()
-      clean_word = me.pos(document, stem=True, norm=True)
-      join_word = []
-      for word in clean_word:
-          if not word[1] in ["Josa"]:
-              join_word.append(word[0])
-
-      document = ' '.join(join_word)
-      data2['TITLE'][i] = document
+# for i, document in enumerate(testX):
+#       me = Okt()
+#       clean_word = me.pos(document, stem=True, norm=True)
+#       join_word = []
+#       for word in clean_word:
+#           if not word[1] in ["Josa"]:
+#               join_word.append(word[0])
+#
+#       document = ' '.join(join_word)
+#       data2['TITLE'][i] = document
 
 print(len(dicts_df.keys()))
 
@@ -87,7 +87,7 @@ print(X[0]) # 첫번째 문장데이터
 print(Y[0]) # 첫번째 문장데이터 레이블
 
 y_train_one = to_categorical(Y) # 훈련용 원-핫 인코딩
-
+print(y_train_one)
 def jaro(sentence, query):
     score = _levenshtein.ratio(sentence, query)
     return score
@@ -163,8 +163,8 @@ cnn_model().summary()
 es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=4)
 mc = ModelCheckpoint('best_model.h5', monitor='acc', mode='max', verbose=1, save_best_only=True)
 check_time = time.time()
-cnn_model().save('cnn_model.h5')
-history_LSTM = cnn_model().fit(X, y_train_one, batch_size=128, epochs=15, callbacks=[es, mc])
+# cnn_model().save('cnn_model.h5')
+# history_LSTM = cnn_model().fit(X, y_train_one, batch_size=128, epochs=15, callbacks=[es, mc])
 
 print("학습시간",time.time() - check_time)
 
@@ -177,14 +177,15 @@ for i,index in enumerate(Y.unique()):
     labels.append(index)
 
 
-new_complaint = ['공제 이용중 사업자등록을 하게되면 이용중 공제 중도해지 해야하나요??']
+new_complaint = '주차료 너무비싸 할인 가능해?'
 seq = tokenizer.texts_to_sequences(new_complaint)
 padded = pad_sequences(seq)
 
 
 loaded_model = load_model('best_model.h5')
 # print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(testX, y_test_one)[1]))
-
+preds = loaded_model.predict(padded)
+print("np : " ,np.argmax(preds))
 f = open('cnnfilter256_지식정제 전체 .csv', 'w', encoding='utf-8', newline='')
 wr = csv.writer(f)
 # f1 = open('LGU_input.csv', 'w', encoding='utf-8', newline='')
@@ -217,7 +218,7 @@ for i,document in enumerate(testX):
     seq = tokenizer.texts_to_sequences(s)
     padded = pad_sequences(seq, maxlen=max_len)
     preds = loaded_model.predict(padded)
-    print(np.argmax(preds))
+    print('np :', np.argmax(preds))
     type = "none"
     label = (np.argmax(preds))
 
