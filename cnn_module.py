@@ -13,6 +13,7 @@ from tensorflow.keras.layers import Dense, LSTM, Embedding, Conv1D, MaxPooling1D
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from status_train import Status
 import pickle
+import data_object
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.models import load_model
 import threading
@@ -91,7 +92,7 @@ def get_tokenizer(n_most_common_words):
     tokenizer = Tokenizer(num_words=n_most_common_words, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', lower=True)
     preprocess_morpheme()
     tokenizer.fit_on_texts(X.values)
-    with open('data/tokenizer.pickle', 'wb') as handle:
+    with open('LSTM/data/tokenizer.pickle', 'wb') as handle:
         pickle.dump(tokenizer, handle)
     handle.close()
     return tokenizer
@@ -101,7 +102,7 @@ def get_tokenizer(n_most_common_words):
 def create_train_vector():
     sequences = tokenizer.texts_to_sequences(X.values)
     max_len = max(len(l) for l in sequences)
-    with open('data/max_len.pickle', 'wb') as handle:
+    with open('LSTM/data/max_len.pickle', 'wb') as handle:
         pickle.dump(max_len, handle)
     handle.close()
     _pad_sequences = pad_sequences(sequences, max_len)
@@ -144,6 +145,34 @@ def similarity(query, threshold):
 
     return result
 
+def similarity_top_k(query, threshold, top_k):
+    query_dict = []
+
+    count = 0
+    for i, document in enumerate(data['TITLE']):
+        count = count + 1
+        score = jaro(document, query)
+
+        if score >= threshold:
+            sim_data = data_object.similarity_data(data['CATEGORY'][i], document, score)
+
+            query_dict.append(sim_data)
+    query_dict.sort(key=operator.attrgetter('score'),reverse=True)
+    sorted(query_dict,key=lambda d: int(d.id), reverse=True)
+
+
+
+    result =[]
+    id_list = []
+    for v in query_dict:
+        if str(v.id) not in id_list:
+            result.append(v)
+            id_list.append(str(v.id))
+
+    return result[:top_k]
+
+
+
 
 # dense_num = category_num
 # max_len = 한 문장 최대 길이
@@ -176,7 +205,7 @@ def cnn_model(dense_num, maxlen):
 def train_model(model_select, sentences, labels):
     es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=4)
     mc = ModelCheckpoint('best_model.h5', monitor='acc', mode='max', verbose=1, save_best_only=True)
-    trained_model = threading.model_select.fit(sentences, labels, batch_size=128, epochs=30, callbacks=[es, mc])
+    trained_model = model_select.fit(sentences, labels, batch_size=128, epochs=30, callbacks=[es, mc])
 
     return trained_model
 
@@ -199,14 +228,17 @@ def train():
     t = threading.Thread(target=retrain, args=())
     t.start()
 
+
 def retrain():
 
+    global _status
+    _status = Status.BUSY
 
     tokenizer = get_tokenizer(5000)
     pad_X = create_train_vector()
     y_train_one = train_label_vector()
     train_model(cnn_model(len(data['CATEGORY'].unique()), max_len), pad_X, y_train_one)
-    status = Status.READY
+    _status = Status.READY
 
 # loaded_model = load_model('model.h5')
 
@@ -232,6 +264,8 @@ def sentence_similarity(sentence, threshold):
     return get_key(set[0][0])
 
 
+
+
 def morphs(sentence):
     me = Okt()
     clean_word = me.pos(sentence, stem=True, norm=True)
@@ -247,4 +281,5 @@ def morphs(sentence):
 
 # # model = load_model('best_model.h5')
 
-print("Hello")
+# print("Hello")
+# train()
