@@ -55,10 +55,11 @@ def init():
     except Exception:
         pass
 
-    global model
+    global model, model_list
     try:
         file = 'LSTM/best_model.h5'
         model = load_model(file)
+
     except Exception:
 
         pass
@@ -178,7 +179,6 @@ def similarity_top_k(query, threshold, top_k):
 # max_len = 한 문장 최대 길이
 def lstm_model(word_index, dense_num):
     model = Sequential()
-
     model.add(Embedding(len(word_index) + 1, 100, input_length=max_len))
     model.add(LSTM(max_len))
     model.add(Dense(dense_num, activation='softmax'))
@@ -242,6 +242,8 @@ def retrain():
 
 # loaded_model = load_model('model.h5')
 
+# def analyze_query(sentence):
+#
 
 
 def sentence_classification(sentence):
@@ -261,6 +263,9 @@ def sentence_classification(sentence):
 def sentence_similarity(sentence, threshold):
     set = similarity(sentence, threshold)
 
+    if not set:
+        return -1
+
     return get_key(set[0][0])
 
 
@@ -279,7 +284,7 @@ def morphs(sentence):
     return document
 
 
-# # model = load_model('best_model.h5')
-
+model = load_model('best_model.h5')
+print(sentence_similarity("인천공항 어디야?",0.85))
 # print("Hello")
 # train()
