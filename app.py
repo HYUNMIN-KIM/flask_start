@@ -7,24 +7,9 @@ import json
 app = Flask(__name__)
 
 
-@app.route('/result', methods=['POST'])
+@app.route('/intent', methods=['POST'])
 def get_result():
-    params_query = request.get_json()['query']
-    params_threshold = request.get_json()['threshold']
-    result = cnn_module.sentence_similarity(params_query, params_threshold)
-    if result == -1:
-        result = cnn_module.sentence_classification(params_query)
-        keys = list(result.keys())
-    else:
-        return {'intent_id': result, }
-
-    print("key  :", keys)
-    id = result[keys[0]]
-    return {'intent_id': str(id)}
-
-
-@app.route('/sentence/analyze', methods=['POST'])
-def analyze_query():
+    param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
     params_threshold = request.get_json()['threshold']
     # 유사질의 분석
@@ -53,6 +38,52 @@ def analyze_query():
 
     json_data = json.dumps(aq.__dict__, ensure_ascii=False)
     return json_data
+
+
+@app.route('/sentence/analyze', methods=['POST'])
+def analyze_query():
+    param_project_id = request.get_json()['project_id']
+    param_query = request.get_json()['query']
+    params_threshold = request.get_json()['threshold']
+    # 유사질의 분석
+    result = []
+
+    sim_list = cnn_module.similarity_top_k(param_query, 0, 5)
+
+
+    if sim_list:
+        aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
+        tmp = []
+        aq.id = str(sim_list[0].id)
+        for sim in sim_list:
+            tmp.append({'intent_id': str(sim.id), 'sentence': sim.sentence, 'score': sim.score})
+        aq.sim_query_list = tmp
+        if sim_list[0].score >= params_threshold:
+            aq.way_of_recommend = "SIMSENTENCE"
+            aq.matched = True
+            # json_data = json.dumps(aq.__dict__, ensure_ascii=False)
+            print(aq.sim_query_list)
+            result.append(aq.__dict__)
+
+            return json.dumps(result,ensure_ascii=False)
+        else:
+            aq.matched = False
+            json_data = json.dumps(aq.__dict__, ensure_ascii=False)
+            result.append(aq.__dict__)
+
+    aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
+    clf_result = cnn_module.sentence_classification(param_query)
+    keys = list(clf_result.keys())
+    aq.id = str(clf_result[keys[0]])
+    tmp_clf =[]
+    tmp_clf.append({'id': aq.id, 'method': 'CNN', 'score': 1})
+    aq.clf_label_list = tmp_clf
+    aq.way_of_recommend = "CLASSIFIER"
+    aq.matched = True
+    # json_data = json.dumps(aq.__dict__, ensure_ascii=False)
+    result.append(aq.__dict__)
+
+    return json.dumps(result,ensure_ascii=False)
 
 
 @app.route('/train', methods=['POST'])

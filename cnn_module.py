@@ -26,7 +26,7 @@ def init():
     _status = Status.READY
 
     global data
-    data = pd.read_csv('LSTM/data/trainQuery.csv', encoding='utf-8')
+    data = pd.read_csv('LSTM/data/koreanjasan.csv', encoding='utf-8')
 
     global dics_df
     dics_df = dict(data.groupby('CATEGORY')['TITLE'].apply(list))
@@ -73,8 +73,10 @@ init()
 # output : morpheme set ( each sentence --> morpheme set)
 # ex) 나는 집에 간다 --> 나 집 간다
 def preprocess_morpheme():
+    #TODO 사용자질의가 "" 일때 예외처리하기
     for i, document in enumerate(X):
         me = Okt()
+        print(i,document)
         clean_word = me.pos(document, stem=True, norm=True)
         join_word = []
         for word in clean_word:
@@ -114,6 +116,7 @@ def train_label_vector():
     encoded_label = label_encoder.fit_transform(Y.tolist())
 
     y_train_one = to_categorical(encoded_label)
+    print(y_train_one.shape)
     return y_train_one
 
 
@@ -205,7 +208,7 @@ def cnn_model(dense_num, maxlen):
 def train_model(model_select, sentences, labels):
     es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=4)
     mc = ModelCheckpoint('best_model.h5', monitor='acc', mode='max', verbose=1, save_best_only=True)
-    trained_model = model_select.fit(sentences, labels, batch_size=128, epochs=30, callbacks=[es, mc])
+    trained_model = model_select.fit(sentences, labels, batch_size=128, epochs=20, callbacks=[es, mc])
 
     return trained_model
 
@@ -252,7 +255,9 @@ def sentence_classification(sentence):
     train_label_vector()
     padded = pad_sequences(seq, maxlen=max_len)
     preds = model.predict(padded)
+
     index = np.argmax(preds)
+
 
     label = label_encoder.classes_[index]
 
@@ -283,8 +288,9 @@ def morphs(sentence):
 
     return document
 
-
+# retrain()
 model = load_model('best_model.h5')
-print(sentence_similarity("인천공항 어디야?",0.85))
+print(sentence_classification("온비드는 뭐냐"))
+print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
 # print("Hello")
 # train()
