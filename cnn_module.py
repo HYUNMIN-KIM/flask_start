@@ -26,7 +26,7 @@ def init():
     _status = Status.READY
 
     global data
-    data = pd.read_csv('LSTM/data/koreanjasan.csv', encoding='utf-8')
+    data = pd.read_csv('data/koreanjasan.csv', encoding='utf-8')
 
     global dics_df
     dics_df = dict(data.groupby('CATEGORY')['TITLE'].apply(list))
@@ -41,7 +41,7 @@ def init():
 
     global max_len
     try:
-        with open('LSTM/data/max_len.pickle', 'rb') as handle:
+        with open('data/max_len.pickle', 'rb') as handle:
             max_len = pickle.load(handle)
         handle.close()
     except Exception:
@@ -49,7 +49,7 @@ def init():
 
     global tokenizer
     try:
-        with open('LSTM/data/tokenizer.pickle', 'rb') as handle:
+        with open('data/tokenizer.pickle', 'rb') as handle:
             tokenizer = pickle.load(handle)
         handle.close()
     except Exception:
@@ -57,7 +57,8 @@ def init():
 
     global model, model_list
     try:
-        file = 'LSTM/best_model.h5'
+        file = 'best_model.h5'
+
         model = load_model(file)
 
     except Exception:
@@ -95,7 +96,7 @@ def get_tokenizer(n_most_common_words):
     tokenizer = Tokenizer(num_words=n_most_common_words, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', lower=True)
     preprocess_morpheme()
     tokenizer.fit_on_texts(X.values)
-    with open('LSTM/data/tokenizer.pickle', 'wb') as handle:
+    with open('data/tokenizer.pickle', 'wb') as handle:
         pickle.dump(tokenizer, handle)
     handle.close()
     return tokenizer
@@ -105,7 +106,7 @@ def get_tokenizer(n_most_common_words):
 def create_train_vector():
     sequences = tokenizer.texts_to_sequences(X.values)
     max_len = max(len(l) for l in sequences)
-    with open('LSTM/data/max_len.pickle', 'wb') as handle:
+    with open('data/max_len.pickle', 'wb') as handle:
         pickle.dump(max_len, handle)
     handle.close()
     _pad_sequences = pad_sequences(sequences, max_len)
@@ -289,8 +290,8 @@ def morphs(sentence):
     return document
 
 # retrain()
-model = load_model('best_model.h5')
-print(sentence_classification("온비드는 뭐냐"))
-print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
+
+# print(sentence_classification("온비드는 뭐냐"))
+# print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
 # print("Hello")
 # train()
