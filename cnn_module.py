@@ -291,7 +291,7 @@ def morphs(sentence):
 
 # retrain()
 
-# print(sentence_classification("온비드는 뭐냐"))
-# print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
+print(sentence_classification("온비드는 뭐냐"))
+print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
 # print("Hello")
 # train()

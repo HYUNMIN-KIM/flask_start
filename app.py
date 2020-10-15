@@ -58,8 +58,9 @@ def analyze_query():
         for sim in sim_list:
             tmp.append({'intent_id': str(sim.id), 'sentence': sim.sentence, 'score': sim.score})
         aq.sim_query_list = tmp
+        aq.way_of_recommend = "SIMSENTENCE"
         if sim_list[0].score >= params_threshold:
-            aq.way_of_recommend = "SIMSENTENCE"
+
             aq.matched = True
             # json_data = json.dumps(aq.__dict__, ensure_ascii=False)
             print(aq.sim_query_list)
@@ -70,7 +71,7 @@ def analyze_query():
             aq.matched = False
             json_data = json.dumps(aq.__dict__, ensure_ascii=False)
             result.append(aq.__dict__)
-
+    print(aq.sim_query_list)
     aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
     clf_result = cnn_module.sentence_classification(param_query)
     keys = list(clf_result.keys())
