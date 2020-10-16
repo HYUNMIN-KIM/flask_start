@@ -4,18 +4,50 @@ from flask import jsonify
 import data_object
 import json
 
+from pattern_matcher.dto.triggering_pattern_dto import TriggeringPatternDTO
+from pattern_matcher.sentence_pattern_matcher import SentencePatternMatcher
+
 app = Flask(__name__)
 
 
 @app.route('/intent', methods=['POST'])
 def get_result():
+    # json example
+    # TODO ID 통일 필요
+    # {
+    #     "project_id": 1,
+    #     "threshold": 0.5,
+    #     "confident_threshold": 0.2,
+    #     "confident_threshold_gap": 0.05,
+    #     "id": 35872920,
+    #     "dialogTaskId": "35872918",
+    #     "order": 1,
+    #     "type": "combination",
+    #     "pattern": "{{집|회사}},{{서울역|판교역}},{{버스|지하철}}",
+    #     "query": "집에서 판교역가려면 몇번 버스타야돼요?"
+    # }
+
     param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
     params_threshold = request.get_json()['threshold']
     params_con_threshold = request.get_json()['confident_threshold']
     params_con_threshold_gap = request.get_json()['confident_threshold_gap']
-    # 유사질의 분석
     aq = data_object.analyzed_query(project_id=1, query=param_query, threshold=params_threshold)
+
+    # TODO 지식 DB에서 데이터 읽어오는 부분 필요
+    # 패턴 매칭
+    param_triggering_dto = request.get_json()
+    triggering_pattern_dto = TriggeringPatternDTO()
+    triggering_pattern_dto.convert_json_to_object(param_triggering_dto)
+    triggering_pattern_dto_list = [triggering_pattern_dto]
+    sentence_pattern = SentencePatternMatcher(triggering_pattern_dto_list)
+
+    sentence_pattern_dto = sentence_pattern.match_sentence(param_triggering_dto['query'])
+    aq.way_of_recommend = "PATTERN"
+    return json.dumps(sentence_pattern_dto.__dict__, ensure_ascii=False)
+
+
+    # 유사질의 분석
     sim_list = cnn_module.similarity_top_k(param_query, params_threshold, 5)
     # sim_list_low = cnn_module.similarity_top_k(param_query, 0.5, 5)
     # print("thresold : ",params_threshold)
@@ -25,6 +57,7 @@ def get_result():
     #     json_data = json.dumps(aq.__dict__, ensure_ascii=False)
     #     return json_data
     # tmp = []
+
     if sim_list:
         if params_threshold < sim_list[0].score:
             aq.id = str(sim_list[0].id)
@@ -54,11 +87,38 @@ def get_result():
 
 @app.route('/sentence/analyze', methods=['POST'])
 def analyze_query():
+    # TODO ID 통일 필요
+    # {
+    #     "project_id": 1,
+    #     "threshold": 0.5,
+    #     "confident_threshold": 0.2,
+    #     "confident_threshold_gap": 0.05,
+    #     "id": 35872920,
+    #     "dialogTaskId": "35872918",
+    #     "order": 1,
+    #     "type": "combination",
+    #     "pattern": "{{집|회사}},{{서울역|판교역}},{{버스|지하철}}",
+    #     "query": "집에서 판교역가려면 몇번 버스타야돼요?"
+    # }
     param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
     params_threshold = request.get_json()['threshold']
     params_con_threshold = request.get_json()['confident_threshold']
     params_con_threshold_gap = request.get_json()['confident_threshold_gap']
+    aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
+
+    # TODO 지식 DB에서 데이터 읽어오는 부분 필요
+    # 패턴 매칭
+    param_triggering_dto = request.get_json()
+    triggering_pattern_dto = TriggeringPatternDTO()
+    triggering_pattern_dto.convert_json_to_object(param_triggering_dto)
+    triggering_pattern_dto_list = [triggering_pattern_dto]
+    sentence_pattern = SentencePatternMatcher(triggering_pattern_dto_list)
+
+    sentence_pattern_dto = sentence_pattern.match_sentence(param_triggering_dto['query'])
+    aq.way_of_recommend = "PATTERN"
+    return json.dumps(sentence_pattern_dto.__dict__, ensure_ascii=False)
+
     # 유사질의 분석
     result = []
 
@@ -66,7 +126,6 @@ def analyze_query():
 
 
     if sim_list:
-        aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
         tmp = []
         aq.id = str(sim_list[0].id)
         for sim in sim_list:
