@@ -1,3 +1,5 @@
+
+
 import numpy as np  # linear algebra
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -18,6 +20,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.models import load_model
 import threading
 import copy
+from itertools import islice
 import operator
 
 
@@ -251,18 +254,25 @@ def retrain():
 
 
 def sentence_classification(sentence):
+    check_time = time.time()
     sentence_morpheme = morphs(sentence)
     seq = tokenizer.texts_to_sequences([sentence_morpheme])
     train_label_vector()
     padded = pad_sequences(seq, maxlen=max_len)
     preds = model.predict(padded)
+    print(time.time() - check_time)
+    print("-----------------------------------predict end-----------------")
+    pandass = pd.Series(preds[0],Y.unique())
+    pandass = pandass.sort_values(ascending=False)
 
-    index = np.argmax(preds)
+    print("-----------------------------------pandass end-----------------")
+    result = []
+    for index, item in zip(range(3), pandass.items()):
+        print(item)
+        result.append((list(item)))
+    print("------------------------result end ----------------------------")
 
 
-    label = label_encoder.classes_[index]
-
-    result = {sentence: label}
     return result
 
 
@@ -291,7 +301,7 @@ def morphs(sentence):
 
 # retrain()
 
-print(sentence_classification("온비드는 뭐냐"))
-print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
-# print("Hello")
+# print(sentence_classification("온비드는 뭐냐"))
+# print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55))
+# # print("Hello")
 # train()
