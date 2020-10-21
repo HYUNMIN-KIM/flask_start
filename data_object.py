@@ -21,7 +21,9 @@ class analyzed_query:
     def __init__(self,query):
         self.__query = query
 
-    def __init__(self, project_id=None, id=None, query=None, way_of_recommend=None, threshold=None, sim_query_list=None, matched=None, clf_label_list=None):
+    def __init__(self, project_id=None, id=None, query=None,
+                       way_of_recommend=None, threshold=None, sim_query_list=None,
+                       matched=None, clf_label_list=None, matched_pattern=None):
         self._project_id = project_id
         self._query = query
         self._id = id
@@ -30,6 +32,7 @@ class analyzed_query:
         self._sim_query_list = sim_query_list
         self._matched = matched
         self._clf_label_list = clf_label_list
+        self._matched_pattern = matched_pattern
 
     def info(self):
         super().info()
@@ -97,3 +100,11 @@ class analyzed_query:
     @clf_label_list.setter
     def clf_label_list(self, clf_label_list):
         self._clf_label_list = clf_label_list
+
+    @property
+    def matcehd_pattern(self):
+        return self._matched_pattern
+
+    @matcehd_pattern.setter
+    def matched_pattern(self, matched_pattern):
+        self._matched_pattern = matched_pattern

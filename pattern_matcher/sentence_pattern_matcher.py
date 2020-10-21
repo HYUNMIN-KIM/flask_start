@@ -196,6 +196,18 @@ class SentencePatternMatcher:
         else:
             return False
 
+    def get_sentence_pattern_matcher(self, project_id = None):
+        # "query": "집에서 판교역가려면 몇번 버스타야돼요?"
+        dto_id = 35872920
+        dialog_task_id = "35872918"
+        order = 1
+        pattern_type = "combination"
+        pattern = "{{집|회사}},{{서울역|판교역}},{{버스|지하철}}"
+        triggering_pattern_dto = TriggeringPatternDTO(dto_id, dialog_task_id, order, pattern, pattern)
+        triggering_pattern_dto_list = [triggering_pattern_dto]
+        sentence_pattern = self(triggering_pattern_dto_list)
+        return sentence_pattern
+
     def match_sentence(self, sentence):
         sentence = sentence.strip()
         for sentence_pattern in self._sentence_pattern_list:
