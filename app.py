@@ -1,5 +1,5 @@
 from flask import Flask, request, make_response
-import cnn_module
+import intent_recommender
 from flask import jsonify
 import data_object
 import json
@@ -30,8 +30,8 @@ def get_result():
         return json_data
 
     # 유사질의 분석
-    sim_list = cnn_module.similarity_top_k(param_query, params_threshold, 5)
-    # sim_list_low = cnn_module.similarity_top_k(param_query, 0.5, 5)
+    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, 5,param_project_id)
+    # sim_list_low = intent_recommender.similarity_top_k(param_query, 0.5, 5)
     # print("thresold : ",params_threshold)
     # if not sim_list_low:
     #     aq.id = -1
@@ -54,7 +54,7 @@ def get_result():
 
 
     print("--------------------sim end------------------")
-    clf_result = cnn_module.sentence_classification(param_query)
+    clf_result = intent_recommender.sentence_classification(param_query,param_project_id)
     if clf_result[0][1] < params_con_threshold and (clf_result[0][1] - clf_result[1][1]) < params_con_threshold_gap:
         aq.id = 0;
         aq.way_of_recommend = "CLASSIFIER"
@@ -89,7 +89,7 @@ def analyze_query():
     # 유사질의 분석
     result = []
 
-    sim_list = cnn_module.similarity_top_k(param_query, 0, 5)
+    sim_list = intent_recommender.similarity_top_k(param_query, 0, 5,param_project_id)
 
 
     if sim_list:
@@ -113,7 +113,7 @@ def analyze_query():
             result.append(aq.__dict__)
     print(aq.sim_query_list)
     aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
-    clf_result = cnn_module.sentence_classification(param_query)
+    clf_result = intent_recommender.sentence_classification(param_query,param_project_id)
     tmp_clf = []
     for index,value in clf_result:
         tmp_clf.append({'id': index, 'method': 'CNN', 'score': value})
@@ -137,8 +137,9 @@ def analyze_query():
 
 @app.route('/train', methods=['POST'])
 def retrain():
-    if cnn_module.train_status():
-        cnn_module.train()
+    param_project_id = request.get_json()['project_id']
+    if intent_recommender.train_status(param_project_id):
+        intent_recommender.train(param_project_id)
         return {'train': 'success'}
     else:
         return {'train': 'fail'}
@@ -146,10 +147,11 @@ def retrain():
 
 @app.route('/api/sentences/', methods=['POST'])
 def sim_sentence():
+    param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
     params_threshold = request.get_json()['threshold']
     params_top_k = request.get_json()['top_k']
-    sim_list = cnn_module.similarity_top_k(param_query, params_threshold, params_top_k)
+    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, params_top_k,param_project_id)
     result = []
     for sim in sim_list:
         result.append({'intent_id': str(sim.id), 'sentence': sim.sentence, 'score': sim.score})
@@ -159,7 +161,8 @@ def sim_sentence():
 
 @app.route('/api/status', methods=['GET'])
 def status():
-    if cnn_module.train_status():
+    param_project_id = request.get_json()['project_id']
+    if intent_recommender.train_status(param_project_id):
         return {'status': 'READY'}
     else:
         return {'status': 'BUSY'}

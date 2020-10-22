@@ -27,7 +27,9 @@ import operator
 
 def init(project_list):
     global _status
-    _status = Status.READY
+    _status = {}
+    for project in project_list:
+        _status.update({project : Status.READY})
 
     global data
     data = {}
@@ -99,6 +101,7 @@ def init(project_list):
 
 x = []
 x.append(123)
+x.append(5213)
 init(x)
 
 
@@ -187,16 +190,16 @@ def similarity(query, threshold,project_id):
 
     return result
 
-def similarity_top_k(query, threshold, top_k):
+def similarity_top_k(query, threshold, top_k,project_id):
     query_dict = []
 
     count = 0
-    for i, document in enumerate(data['TITLE']):
+    for i, document in enumerate(data[project_id]['TITLE']):
         count = count + 1
         score = jaro(document, query)
 
         if score >= threshold:
-            sim_data = data_object.similarity_data(data['CATEGORY'][i], document, score)
+            sim_data = data_object.similarity_data(data[project_id]['CATEGORY'][i], document, score)
 
             query_dict.append(sim_data)
     query_dict.sort(key=operator.attrgetter('score'),reverse=True)
@@ -254,32 +257,34 @@ def train_model(model_select, sentences, labels,project_id):
 # dicts_df = (dict(data.groupby('CATEGORY')['TITLE'].apply(list)))
 # dicts = copy.deepcopy
 
-def train_status():
-
-    if _status == Status.READY:
+def train_status(project_id):
+    print(_status)
+    if _status[project_id] == Status.READY:
         return True
     else:
         return False
 
 
-def train():
+def train(project_id):
     global _status
-    _status = Status.BUSY
 
-    t = threading.Thread(target=retrain, args=())
+    _status.update({project_id: Status.BUSY})
+
+    t = threading.Thread(target=retrain, args=(project_id,))
     t.start()
 
 
 def retrain(project_id):
 
     global _status
-    _status = Status.BUSY
+
+    _status[project_id] = Status.BUSY
 
     tokenizer[project_id] = get_tokenizer(5000,project_id)
     pad_X = create_train_vector(project_id)
     y_train_one = train_label_vector(project_id)
     model = train_model(cnn_model(len(data[project_id]['CATEGORY'].unique()), max_len[project_id],project_id), pad_X, y_train_one,project_id)
-    _status = Status.READY
+    _status[project_id] = Status.READY
 
 
 # loaded_model = load_model('model.h5')
@@ -336,8 +341,10 @@ def morphs(sentence):
 
 
 # retrain(123)
-
-print(sentence_classification("온비드는 뭐냐",123))
-print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55,123))
+# retrain(5213)
+#
+# print(sentence_classification("온비드는 뭐냐",123))
+# print(sentence_similarity("온비드에서 왜 일반공인인증서는 안됩니까?",0.55,123))
+# print(sentence_similarity("택배 신규 예약해줘",0.55,5213))
 print("Hello")
 # train()
