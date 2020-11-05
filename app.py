@@ -3,12 +3,18 @@ import intent_recommender
 from flask import jsonify
 import data_object
 import json
-
+import requests
 from pattern_matcher.sentence_pattern_matcher import SentencePatternMatcher
 import data_handling
 
 app = Flask(__name__)
 
+
+response = requests.get('http://127.0.0.1:17405/knowledge/project-ids')
+print(response.json())
+pj_list = response.json()
+print(pj_list[0])
+intent_recommender.init(pj_list)
 
 @app.route('/intent', methods=['POST'])
 def get_result():
@@ -17,6 +23,7 @@ def get_result():
     params_threshold = request.get_json()['threshold']
     params_con_threshold = request.get_json()['confident_threshold']
     params_con_threshold_gap = request.get_json()['confident_threshold_gap']
+    params_dialogtask_mode = request.get_json()['dialog_task_mode']
     aq = data_object.analyzed_query(project_id=1, query=param_query, threshold=params_threshold)
 
     # 패턴 매칭
@@ -30,7 +37,7 @@ def get_result():
         return json_data
 
     # 유사질의 분석
-    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, 5,param_project_id)
+    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, 5, param_project_id)
     # sim_list_low = intent_recommender.similarity_top_k(param_query, 0.5, 5)
     # print("thresold : ",params_threshold)
     # if not sim_list_low:
@@ -53,7 +60,6 @@ def get_result():
         #     aq.way_of_recommend = "SIMSENTENCE"
 
 
-    print("--------------------sim end------------------")
     clf_result = intent_recommender.sentence_classification(param_query,param_project_id)
     if clf_result[0][1] < params_con_threshold and (clf_result[0][1] - clf_result[1][1]) < params_con_threshold_gap:
         aq.id = 0;
@@ -89,7 +95,7 @@ def analyze_query():
     # 유사질의 분석
     result = []
 
-    sim_list = intent_recommender.similarity_top_k(param_query, 0, 5,param_project_id)
+    sim_list = intent_recommender.similarity_top_k(param_query, 0, 5, param_project_id)
 
 
     if sim_list:
