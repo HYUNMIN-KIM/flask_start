@@ -36,10 +36,12 @@ def create_project_df_simulation(project_id):
     json_data = json.loads(response.text)
     df = json_normalize(json_data['items'])
     file_path = f'data/{project_id}/simulation/'
-    file = os.path.join(file_path, project_id + ".json")
+    file = os.path.join(file_path, str(project_id) + ".json")
     with open(file, 'w', encoding='utf8') as outfile:
         outfile.write(json.dumps(json_data, ensure_ascii=False))
 
+    outfile.close()
+    print(df)
     return df
 
 
@@ -52,7 +54,7 @@ def create_project_df_service(project_id):
     return df
 
 
-def copytree(project_id, symlinks=False, ignore=None):
+def apply_model(project_id, symlinks=False, ignore=None):
     src = f'data/{project_id}/simulation'
     dst = f'data/{project_id}/service'
     for item in os.listdir(src):
@@ -68,7 +70,7 @@ def copytree(project_id, symlinks=False, ignore=None):
 
 
 def load_service(project_list):
-    # TODO service, simulation 함수 나누기 
+    ##디렉토리 없으면 디렉토리 생성
     try:
         for project in project_list:
             data_path = f"data/{project}"
@@ -84,20 +86,17 @@ def load_service(project_list):
             print("Failed to create directory!!!!!")
             raise
 
-    global _status
-    _status = {}
-    for project in project_list:
-        _status.update({project: Status.READY})
-
+    # 데이터 불러오기
     global service_data
     service_data = {}
     try:
         for project in project_list:
             service_data.update(({project: create_project_df_service(project)}))
     except Exception:
-        print("serivce data file not found")
+        print("service data file not found", project)
         pass
 
+    # 데이터 dictionary로 사용(sim_sentence 사용)
     global service_dict_df
     service_dict_df = {}
     for project in project_list:
@@ -105,6 +104,7 @@ def load_service(project_list):
             service_dict_df.update(
                 {project: dict(service_data[project].groupby('dialogTaskId')['sentence'].apply(list))})
 
+    # 형태소 분석 안된 pure 데이터
     global X_service, Y_service
 
     X_service = {}
@@ -114,9 +114,11 @@ def load_service(project_list):
             Y_service.update({project: copy.deepcopy(service_data[project]['dialogTaskId'])})
             X_service.update({project: copy.deepcopy(service_data[project]['sentence'])})
 
+    # 인텐트 id 인코더
     global label_encoder
     label_encoder = LabelEncoder()
 
+    # 토크나이저
     global service_tokenizer
     service_tokenizer = {}
     try:
@@ -130,20 +132,22 @@ def load_service(project_list):
     except Exception:
         pass
 
+    # 서비스 모델
     global service_model_list
     service_model_list = {}
     try:
         for project in project_list:
-            service_project_path = f"data/service{project}/"
+            service_project_path = f"data/{project}/service"
             file_path = os.path.join(service_project_path, "best_model.h5")
             model_list.update({project: load_model(file_path)})
 
     except Exception:
+        print("model upload failure - ", project)
         pass
 
 
 def load_simulation(project_list):
-    # TODO service, simulation 함수 나누기 
+    ##디렉토리 없으면 디렉토리 생성
     try:
         for project in project_list:
             data_path = f"data/{project}"
@@ -159,6 +163,7 @@ def load_simulation(project_list):
             print("Failed to create directory!!!!!")
             raise
 
+    # 데이터 불러오기
     global _status
     _status = {}
     for project in project_list:
@@ -170,15 +175,17 @@ def load_simulation(project_list):
         for project in project_list:
             data.update({project: create_project_df_simulation(project)})
     except Exception:
-        print("simulation data file not found")
+        print("simulation data file not found -  ", project)
         pass
 
+    # 데이터 dictionary로 사용(sim_sentence 사용)
     global dict_df
     dict_df = {}
     for project in project_list:
         if project in data:
             dict_df.update({project: dict(data[project].groupby('dialogTaskId')['sentence'].apply(list))})
 
+    # 형태소 분석 안된 pure 데이터
     global X, Y
     X = {}
     Y = {}
@@ -187,6 +194,7 @@ def load_simulation(project_list):
             Y.update({project: copy.deepcopy(data[project]['dialogTaskId'])})
             X.update({project: copy.deepcopy(data[project]['sentence'])})
 
+    # 인텐트 id 인코더
     global label_encoder
     label_encoder = LabelEncoder()
 
@@ -203,6 +211,7 @@ def load_simulation(project_list):
     except Exception:
         pass
 
+    # 토크나이저
     global tokenizer
     tokenizer = {}
     try:
@@ -235,13 +244,23 @@ def delete_project(project_id):
 
     backup_path = str(backup_path)
     backup_pj_path = os.path.join(backup_path, str(project_id))
-
     if os.path.isdir(backup_pj_path):
         shutil.rmtree(backup_pj_path)
 
-    del model_list[project_id]
+    print(model_list)
+    print(service_model_list)
+    id = -1
+    if project_id in service_model_list.keys():
+        id = service_model_list.pop(project_id)
+    if project_id in model_list.keys():
+        id = model_list.pop(project_id)
+
+    if id == -1:
+        print("not exists")
+        return False
     shutil.move(project_path, backup_path)
     print("Delete Project : ", project_id)
+    return True
 
 
 ##형태소 분석
@@ -250,7 +269,10 @@ def delete_project(project_id):
 # ex) 나는 집에 간다 --> 나 집 간다
 def preprocess_morpheme(project_id):
     # TODO 사용자질의가 "" 일때 예외처리하기
-    for i, document in enumerate(X[project_id]):
+    print("data : ", data
+          )
+    print("X : ", X)
+    for i, document in enumerate(X.get(project_id)):
         me = Okt()
 
         clean_word = me.pos(document, stem=True, norm=True)
@@ -435,15 +457,13 @@ def train_model(model_select, sentences, labels, project_id):
 
 def train_status(project_id):
     print(_status)
-    if _status[project_id] == Status.READY:
+    if _status.get(project_id) == Status.READY:
         return True
     else:
         return False
 
 
 def train(project_id):
-    global _status
-
     _status.update({project_id: Status.BUSY})
 
     t = threading.Thread(target=retrain, args=(project_id,))
@@ -454,7 +474,7 @@ def retrain(project_id):
     global _status
 
     _status[project_id] = Status.BUSY
-
+    data.update({project_id: create_project_df_simulation(project_id)})
     tokenizer[project_id] = get_tokenizer(5000, project_id)
     pad_X = create_train_vector(project_id)
     y_train_one = train_label_vector(project_id, "simulation")
@@ -510,6 +530,3 @@ def morphs(sentence):
     document = ' '.join(join_word)
 
     return document
-
-
-copytree(str(20000005))
