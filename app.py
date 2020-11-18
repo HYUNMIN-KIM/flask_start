@@ -9,14 +9,16 @@ import data_handling
 
 app = Flask(__name__)
 
-
 response = requests.get('http://127.0.0.1:17405/knowledge/project-ids')
 print(response.json())
 pj_list = response.json()
 print(pj_list[0])
-intent_recommender.init(pj_list)
+intent_recommender.load_simulation(pj_list)
+print(intent_recommender.train_status(pj_list[0]))
+intent_recommender.load_service(pj_list)
 
-@app.route('/intent', methods=['POST'])
+
+@app.route('/recommend-intent', methods=['POST'])
 def get_result():
     param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
@@ -38,14 +40,6 @@ def get_result():
 
     # 유사질의 분석
     sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, 5, param_project_id)
-    # sim_list_low = intent_recommender.similarity_top_k(param_query, 0.5, 5)
-    # print("thresold : ",params_threshold)
-    # if not sim_list_low:
-    #     aq.id = -1
-    #     aq.way_of_recommend = "Meaningless"
-    #     json_data = json.dumps(aq.__dict__, ensure_ascii=False)
-    #     return json_data
-    # tmp = []
 
     if sim_list:
         if params_threshold < sim_list[0].score:
@@ -53,20 +47,14 @@ def get_result():
             aq.way_of_recommend = "SIMSENTENCE"
             json_data = json.dumps(aq.__dict__, ensure_ascii=False)
             return json_data
-        # for sim in sim_list:
-        #     tmp.append({'intent_id': str(sim.id), 'sentence': sim.sentence, 'score': sim.score})
-        #
-        #     aq.sim_query_list = tmp
-        #     aq.way_of_recommend = "SIMSENTENCE"
 
-
-    clf_result = intent_recommender.sentence_classification(param_query,param_project_id)
+    clf_result = intent_recommender.sentence_classification(param_query, param_project_id)
     if clf_result[0][1] < params_con_threshold and (clf_result[0][1] - clf_result[1][1]) < params_con_threshold_gap:
         aq.id = 0;
         aq.way_of_recommend = "CLASSIFIER"
     else:
-         aq.id = str(clf_result[0][0])
-         aq.way_of_recommend = "CLASSIFIER"
+        aq.id = str(clf_result[0][0])
+        aq.way_of_recommend = "CLASSIFIER"
 
     json_data = json.dumps(aq.__dict__, ensure_ascii=False)
     print(json_data)
@@ -97,7 +85,6 @@ def analyze_query():
 
     sim_list = intent_recommender.similarity_top_k(param_query, 0, 5, param_project_id)
 
-
     if sim_list:
         tmp = []
         aq.id = str(sim_list[0].id)
@@ -112,16 +99,16 @@ def analyze_query():
             print(aq.sim_query_list)
             result.append(aq.__dict__)
 
-            return json.dumps(result,ensure_ascii=False)
+            return json.dumps(result, ensure_ascii=False)
         else:
             aq.matched = False
             json_data = json.dumps(aq.__dict__, ensure_ascii=False)
             result.append(aq.__dict__)
     print(aq.sim_query_list)
     aq = data_object.analyzed_query(project_id=param_project_id, query=param_query, threshold=params_threshold)
-    clf_result = intent_recommender.sentence_classification(param_query,param_project_id)
+    clf_result = intent_recommender.sentence_classification(param_query, param_project_id)
     tmp_clf = []
-    for index,value in clf_result:
+    for index, value in clf_result:
         tmp_clf.append({'id': index, 'method': 'CNN', 'score': value})
 
     if clf_result[0][1] < params_con_threshold and (clf_result[0][1] - clf_result[1][1]) < params_con_threshold_gap:
@@ -138,26 +125,16 @@ def analyze_query():
     # json_data = json.dumps(aq.__dict__, ensure_ascii=False)
     result.append(aq.__dict__)
 
-    return json.dumps(result,ensure_ascii=False)
+    return json.dumps(result, ensure_ascii=False)
 
 
-@app.route('/train', methods=['POST'])
-def retrain():
-    param_project_id = request.get_json()['project_id']
-    if intent_recommender.train_status(param_project_id):
-        intent_recommender.train(param_project_id)
-        return {'train': 'success'}
-    else:
-        return {'train': 'fail'}
-
-
-@app.route('/api/sentences/', methods=['POST'])
+@app.route('/sentences', methods=['POST'])
 def sim_sentence():
     param_project_id = request.get_json()['project_id']
     param_query = request.get_json()['query']
     params_threshold = request.get_json()['threshold']
     params_top_k = request.get_json()['top_k']
-    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, params_top_k,param_project_id)
+    sim_list = intent_recommender.similarity_top_k(param_query, params_threshold, params_top_k, param_project_id)
     result = []
     for sim in sim_list:
         result.append({'intent_id': str(sim.id), 'sentence': sim.sentence, 'score': sim.score})
@@ -165,13 +142,45 @@ def sim_sentence():
     return jsonify(result);
 
 
-@app.route('/api/status', methods=['GET'])
-def status():
-    param_project_id = request.get_json()['project_id']
+@app.route('/train/start', methods=['GET'])
+def retrain():
+    param_project_id = request.args.get('projectId')
+    param_project_id = int(param_project_id)
+    print(param_project_id)
     if intent_recommender.train_status(param_project_id):
-        return {'status': 'READY'}
+        intent_recommender.train(param_project_id)
+        return {'train': 'success'}
     else:
-        return {'status': 'BUSY'}
+        return {'train': 'fail'}
+
+
+@app.route('/train/status', methods=['GET'])
+def status():
+    param_project_id = request.args.get('projectId')
+    param_project_id = int(param_project_id)
+    if intent_recommender.train_status(param_project_id):
+        return 'READY'
+    else:
+        return 'BUSY'
+
+
+@app.route('/copy/model', methods=['GET'])
+def apply():
+    param_project_id = request.args.get('projectId')
+    param_project_id = int(param_project_id)
+    intent_recommender.apply_model(param_project_id)
+
+    return 'SUCCESS'
+
+@app.route('/project', methods=['DELETE'])
+def delete_project():
+    param_project_id = request.args.get('projectId')
+    param_project_id = int(param_project_id)
+    if intent_recommender.delete_project(param_project_id):
+        return "SUCCESS"
+    else:
+        return "FAILURE"
+
 
 
 if __name__ == '__main__':
